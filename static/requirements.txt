@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+transformers
+torch
+textwrap3
+pymupdf
+python-docx
+openpyxl
+pillow

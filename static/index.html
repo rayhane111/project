@@ -1,0 +1,120 @@
+
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Document Translation Service</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    background-color: #f4f4f4;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    height: 100vh;
+                    margin: 0;
+                }
+                .container {
+                    background: white;
+                    padding: 2rem;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+                    width: 100%;
+                    max-width: 500px;
+                }
+                h1 {
+                    font-size: 1.8rem;
+                    margin-bottom: 1rem;
+                    text-align: center;
+                    color: #333;
+                }
+                label {
+                    display: block;
+                    margin-bottom: 0.5rem;
+                    font-weight: bold;
+                }
+                input, select, button {
+                    width: 100%;
+                    padding: 0.75rem;
+                    margin-bottom: 1rem;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                }
+                button {
+                    background-color: #4caf50;
+                    color: white;
+                    font-size: 1rem;
+                    cursor: pointer;
+                    border: none;
+                }
+                button:hover {
+                    background-color: #45a049;
+                }
+                #result {
+                    background: #f4f4f4;
+                    padding: 1rem;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    white-space: pre-wrap;
+                    min-height: 100px;
+                }
+                .error {
+                    color: red;
+                    font-weight: bold;
+                }
+            </style>
+        </head>
+        <body>
+            <div class="container">
+                <h1>Document Translator</h1>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <label for="file">Choose a file that you (TXT, PDF, DOCX, PPTX, XLSX):</label>
+                    <input type="file" id="file" name="file" accept=".txt,.pdf,.docx,.pptx,.xlsx" required>
+                    <label for="src_lang">Source Language:</label>
+                    <select id="src_lang" name="src_lang">
+                        <option>Anglais</option>
+                        <option>Fran�ais</option>
+                        <option>Arabe</option>
+                        <option>Espagnol</option>
+                        <option>Allemand</option>
+                        <option>Italien</option>
+                        <option>Portugais</option>
+                        <option>N�erlandais</option>
+                    </select>
+                    <label for="tgt_lang">Target Language:</label>
+                    <select id="tgt_lang" name="tgt_lang">
+                        <option>Anglais</option>
+                        <option>Fran�ais</option>
+                        <option>Arabe</option>
+                        <option>Espagnol</option>
+                        <option>Allemand</option>
+                        <option>Italien</option>
+                        <option>Portugais</option>
+                        <option>N�erlandais</option>
+                    </select>
+                    <button type="submit">Translate</button>
+                </form>
+                <h2>Translation Result:</h2>
+                <pre id="result"></pre>
+            </div>
+            <script>
+                document.getElementById('uploadForm').onsubmit = async function(event) {
+                    event.preventDefault();
+                    const formData = new FormData(this);
+                    const response = await fetch('/upload/', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const result = await response.json();
+                    if (result.translated_text) {
+                        document.getElementById('result').textContent = result.translated_text;
+                    } else {
+                        document.getElementById('result').textContent = 'Error: ' + result.detail;
+                        document.getElementById('result').classList.add('error');
+                    }
+                }
+            </script>
+        </body>
+        </html>
+        

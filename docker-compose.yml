@@ -1,0 +1,19 @@
+
+services:
+  data-visualization:
+    build: ./Visualisation  # Chemin vers le Dockerfile de ce service
+    container_name: data_vis_service
+    ports:
+      - "8001:8000"  # Exposer l'API sur le port 8001
+    volumes:
+      - ./uploads:/app/uploads  # Partager le dossier d'uploads
+   
+
+
+  document-translation:
+    build: ./translation  # Chemin vers le Dockerfile de ce service
+    container_name: translation_service
+    ports:
+      - "8002:8000"  # Exposer l'API sur le port 8002
+    volumes:
+      - ./uploads:/app/uploads  # Partager le dossier d'uploads

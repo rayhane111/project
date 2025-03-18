@@ -1,20 +1,23 @@
-# Utilisation de l'image Python comme base
+# Use Python 3.9 as base image
 FROM python:3.9
 
-# Définition du répertoire de travail
+# Set working directory inside the container
 WORKDIR /app
 
-# Copier les fichiers du projet dans l'image Docker
+# Copy project files
 COPY . .
 
-# Installer les dépendances
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy the torch_wheels directory from location
+COPY ../torch_wheels /tmp/torch_wheels
 
-# Exposer le port utilisé par FastAPI
+# Install torch wheels
+RUN pip install --no-cache-dir /tmp/torch_wheels/*
+
+# Install other dependencies
+RUN pip install --no-cache-dir -r project/requirements.txt
+
+# Expose port for FastAPI
 EXPOSE 7860
 
-# Lancer l'application avec Uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "7860"]
-
-
-ENV C:\Program Files\Docker\Docker
+# Start the application
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

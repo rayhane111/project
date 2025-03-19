@@ -3,23 +3,36 @@ from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from transformers import pipeline
 import textwrap
-import fitz  # PyMuPDF pour PDF
+import fitz  # PyMuPDF for PDF handling
 from docx import Document
-import openpyxl  # Pour Excel
+import openpyxl  # For Excel
 from pptx import Presentation
 from functools import lru_cache
+import os
 
+# Initialize FastAPI app
 app = FastAPI()
 
-# Servir les fichiers statiques (comme index.html)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Set the correct path for static files
+STATIC_DIR = r"C:\Users\User\doc_translation_service\translation\static"
+
+# Ensure the static directory exists
+if not os.path.exists(STATIC_DIR):
+    os.makedirs(STATIC_DIR)
+
+# Mount static files (serves index.html)
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.get("/", response_class=HTMLResponse)
 async def read_root():
-    with open("static/index.html", "r", encoding="utf-8") as file:
-        return HTMLResponse(content=file.read())
+    index_path = os.path.join(STATIC_DIR, "index.html")
+    try:
+        with open(index_path, "r", encoding="utf-8") as file:
+            return HTMLResponse(content=file.read())
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="index.html not found in static folder.")
 
-# Dictionnaire des codes de langues (ISO 639-1)
+# Language codes (ISO 639-1)
 LANGUAGE_CODES = {
     "Anglais": "en",
     "Francais": "fr",
@@ -27,7 +40,7 @@ LANGUAGE_CODES = {
     "Espagnol": "es",
 }
 
-# Vérification de la disponibilité des modèles
+# Available translation models
 AVAILABLE_MODELS = {
     "fr-en": "Helsinki-NLP/opus-mt-fr-en",
     "en-fr": "Helsinki-NLP/opus-mt-en-fr",
@@ -37,39 +50,28 @@ AVAILABLE_MODELS = {
     "en-es": "Helsinki-NLP/opus-mt-en-es",
 }
 
-# Cache pour éviter de recharger les modèles à chaque requête
+# Cache model loading
 @lru_cache(maxsize=10)
 def load_translator(src_code: str, tgt_code: str):
     model_key = f"{src_code}-{tgt_code}"
     
     if model_key in AVAILABLE_MODELS:
-        model_name = AVAILABLE_MODELS[model_key]
-        print(f"🔹 Chargement du modèle : {model_name}")
-        return pipeline("translation", model=model_name)
+        return pipeline("translation", model=AVAILABLE_MODELS[model_key])
 
-    # Gestion des traductions indirectes via l'anglais
-    elif src_code == "fr" and tgt_code == "ar":
-        print("🔹 Traduction indirecte via l'anglais : fr -> en -> ar")
+    elif src_code != "en" and tgt_code != "en":
         return (
-            pipeline("translation", model=AVAILABLE_MODELS["fr-en"]),
-            pipeline("translation", model=AVAILABLE_MODELS["en-ar"])
-        )
-
-    elif src_code == "ar" and tgt_code == "fr":
-        print("🔹 Traduction indirecte via l'anglais : ar -> en -> fr")
-        return (
-            pipeline("translation", model=AVAILABLE_MODELS["ar-en"]),
-            pipeline("translation", model=AVAILABLE_MODELS["en-fr"])
+            pipeline("translation", model=AVAILABLE_MODELS.get(f"{src_code}-en")),
+            pipeline("translation", model=AVAILABLE_MODELS.get(f"en-{tgt_code}"))
         )
 
     else:
-        raise ValueError(f"⚠️ Aucun modèle disponible pour {src_code} -> {tgt_code}")
+        raise ValueError(f"No model available for {src_code} -> {tgt_code}")
 
-# Découpe le texte en segments de taille gérable
+# Split text into chunks
 def chunk_text(text, max_length=400):
     return textwrap.wrap(text, max_length)
 
-# Extraction du texte en fonction du type de fichier
+# Extract text based on file type
 def extract_text(file: UploadFile):
     try:
         if file.filename.endswith(".txt"):
@@ -102,10 +104,10 @@ def extract_text(file: UploadFile):
             return text
 
         else:
-            raise HTTPException(status_code=400, detail="❌ Type de fichier non supporté.")
+            raise HTTPException(status_code=400, detail="File type not supported.")
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Erreur lors de l'extraction du texte : {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error extracting text: {str(e)}")
 
 @app.post("/upload/")
 async def upload_file(
@@ -116,27 +118,28 @@ async def upload_file(
     text = extract_text(file)
 
     if not text.strip():
-        raise HTTPException(status_code=400, detail="❌ Aucun texte extrait du fichier.")
+        raise HTTPException(status_code=400, detail="No text extracted from the file.")
 
     src_code = LANGUAGE_CODES.get(src_lang)
     tgt_code = LANGUAGE_CODES.get(tgt_lang)
 
     if not src_code or not tgt_code:
-        raise HTTPException(status_code=400, detail=f"⚠️ Langue non supportée : {src_lang} -> {tgt_lang}")
+        raise HTTPException(status_code=400, detail=f"Unsupported language: {src_lang} -> {tgt_lang}")
 
     try:
-        # Charger le modèle correct
+        # Load translation model
         translator = load_translator(src_code, tgt_code)
 
-        # Si traduction indirecte via l'anglais
+        # If indirect translation via English
         if isinstance(translator, tuple):
             translator1, translator2 = translator
             intermediate_text = "\n".join([translator1(chunk)[0]['translation_text'] for chunk in chunk_text(text)])
             translated_text = "\n".join([translator2(chunk)[0]['translation_text'] for chunk in chunk_text(intermediate_text)])
+
         else:
             translated_text = "\n".join([translator(chunk)[0]['translation_text'] for chunk in chunk_text(text)])
 
         return {"translated_text": translated_text}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"❌ Erreur interne : {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal error: {str(e)}")

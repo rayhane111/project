@@ -2,8 +2,8 @@ fastapi
 uvicorn
 transformers
 torch
-textwrap3
+textwrap
 pymupdf
 python-docx
 openpyxl
-pillow
+python-pptx
